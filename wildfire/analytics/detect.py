@@ -19,11 +19,11 @@ from ..geo import angle_diff, bearing_deg, compass, haversine_km, point_in_geome
 from ..models import Incident, Observation
 
 ROUTES = {
-    "priority_review": "Priority review: likely new fire with no matching incident. Notify the duty officer for a decision.",
-    "verify": "Verify before acting: task a camera, aircraft or UAS to confirm. Confidence is below the review threshold.",
-    "watch": "Watch: weak evidence. Re-evaluate on the next satellite pass.",
-    "monitor_known": "Known incident: observations are attached to the incident record for monitoring.",
-    "likely_static": "Likely static heat source (gas flare or industrial). Suppressed from the review queue.",
+    "priority_review": "Likely new fire: seen on more than one satellite look and no known fire is there. Tell the duty officer, who decides.",
+    "verify": "Needs a check: send a camera, drone or crew to confirm before anyone acts.",
+    "watch": "Weak signal: keep an eye on it and look again after the next satellite pass.",
+    "monitor_known": "Known fire: these heat spots are added to the fire the fire service already tracks.",
+    "likely_static": "Likely a gas flare or industrial heat source, so it is kept out of the urgent list.",
 }
 
 

@@ -217,7 +217,7 @@
   function renderQueue() {
     const q = clear($("#queue"));
     const cs = S.d.candidates;
-    $("#queue-count").textContent = `${cs.length} cluster${cs.length === 1 ? "" : "s"}`;
+    $("#queue-count").textContent = `${cs.length} possible fire${cs.length === 1 ? "" : "s"}`;
     if (!cs.length) { q.append(el("li", { class: "empty", text: "No thermal detections in the current window." })); return; }
     cs.forEach((c, i) => {
       const placeTxt = c.incident ? `Matches ${c.incident.name}` : c.exposure.find((e) => e.downwind) ? `${c.exposure.find((e) => e.downwind).name} downwind, ${U.dist(c.exposure.find((e) => e.downwind).distance_km)}` : c.exposure[0] ? `${U.dist(c.exposure[0].distance_km)} from ${c.exposure[0].name}` : "No populated place nearby";
