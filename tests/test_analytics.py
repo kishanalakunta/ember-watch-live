@@ -212,3 +212,19 @@ def test_pipeline_survives_a_crashing_provider(monkeypatch, tmp_path):
     failed = [x for x in s["sources"] if x["status"] == "failed"]
     assert failed and "provider exploded" in failed[0]["message"]
     assert s["kpis"]["grid_cells"] > 0
+
+
+def test_single_pass_needs_corroboration_for_priority():
+    pack = load_pack("texas")
+    t = NOW - timedelta(hours=1)
+    lone = [_obs(33.0, -99.0, t, 0.9, "NOAA-20", 4)]                    # one bright pixel, one look
+    big = [_obs(34.0 + 0.003 * k, -100.0, t, 0.9, "NOAA-20", 25) for k in range(4)]  # 4 px, strong FRP
+    out = {round(c["lat"]): c for c in build_candidates(lone + big, [], _cells(), pack, NOW)}
+    assert out[33]["route"] == "verify" and out[33]["components"]["held_back_uncorroborated"]
+    assert out[34]["route"] == "priority_review"
+
+
+def test_two_night_flare_is_static_in_texas():
+    pack = load_pack("texas")
+    flare = [_obs(31.9, -102.33, NOW - timedelta(days=d, hours=3), 0.7, "Suomi NPP", 3) for d in range(2)]
+    assert build_candidates(flare, [], _cells(), pack, NOW)[0]["route"] == "likely_static"

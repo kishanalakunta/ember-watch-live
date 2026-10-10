@@ -44,11 +44,12 @@ detection:
   incident_match_km: 5.0       # cross-reference radius to known incidents (FR-12)
   exposure_radius_km: 40.0
   static_source:               # Permian Basin gas flares produce persistent VIIRS hits
-    min_distinct_days: 3
+    min_distinct_days: 2       # tuned on live runs (Oct 2026): flares were reaching priority review
     max_extent_km: 0.8
   routing:                     # decision support only — a human makes every call (PRD A5)
     priority_review: 0.85
     verify: 0.50
+    min_passes_for_priority: 2 # a single satellite look goes to verification, not priority
 
 risk:
   model_id: fwi-system-v1

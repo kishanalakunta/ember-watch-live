@@ -51,6 +51,9 @@ def explain_candidate(c: dict, units: Units, sources: dict[str, str]) -> list[di
     add("calculated", f"Fused detection confidence {comp['detection_evidence']:.2f} (pass-aware noisy-OR), "
         f"weather factor {comp['weather_factor']}, static-source factor {comp['static_factor']}; "
         f"priority score {c['score']:.2f}.", [c["id"]])
+    if comp.get("held_back_uncorroborated"):
+        add("calculated", "Score is high, but only one satellite pass has seen it, so it is held at verification "
+            "until a second pass or a camera/UAS check confirms it.", [c["id"]])
     if comp["static_factor"] < 1:
         add("model", f"Detected on {comp['distinct_days']} separate days within {units.dist(comp['extent_km'])} "
             "with at most 2 pixels per pass, which matches a static heat source such as a gas flare.", [c["id"]])

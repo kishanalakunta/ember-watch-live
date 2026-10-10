@@ -46,6 +46,7 @@ class StaticSource(Strict):
 class Routing(Strict):
     priority_review: float = Field(ge=0, le=1)
     verify: float = Field(ge=0, le=1)
+    min_passes_for_priority: int = Field(default=2, ge=1, le=6)
 
 
 class Detection(Strict):

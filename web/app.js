@@ -5,7 +5,7 @@
 (function () {
   "use strict";
   const $ = (s, r = document) => r.querySelector(s);
-  const ROUTE_LABEL = { priority_review: "Priority review", verify: "Verify", monitor_known: "Known incident", watch: "Watch", likely_static: "Static source" };
+  const ROUTE_LABEL = { priority_review: "Likely new fire", verify: "Needs a check", monitor_known: "Known fire", watch: "Weak signal", likely_static: "Gas flare / industrial" };
   const KIND = { observed: ["Observed", "Sensor and agency reports"], calculated: ["Calculated", "Deterministic analytics"], model: ["Model-derived", "Index or model output"], unknown: ["Unknown", "What the evidence cannot tell"] };
   const FILES = ["summary.json", "config.json", "risk.geojson", "risk_cells.json", "detections.geojson", "candidates.json", "incidents.geojson", "boundary.geojson", "places.geojson"];
   const meta = (n) => (document.querySelector(`meta[name="${n}"]`) || {}).content || "";
@@ -205,12 +205,12 @@
     const sensors = Object.entries(k.detections_48h_by_sensor || {}).map(([a, b]) => `${a} ${b}`).join(" · ") || "none";
     const box = clear($("#kpis"));
     const kpi = (cls, label, v, small, d) => box.append(el("div", { class: `kpi ${cls}` }, el("span", { class: "lbl", text: label }), el("span", { class: "v" }, String(v), small ? el("small", { text: small }) : null), el("span", { class: "d", text: d })));
-    kpi(r.priority_review ? "alert" : "", "Priority review", r.priority_review || 0, "", "unmatched likely fires");
-    kpi(r.verify ? "warn" : "", "Verify", r.verify || 0, "", "camera / aircraft / UAS check");
-    kpi("", "Known incidents", k.known_incidents, "", `${r.monitor_known || 0} with satellite detections`);
-    kpi("", "Detections 48 h", k.detections_48h, "", sensors);
-    kpi("", `High or above · ${["today", "tomorrow", "day 3"][S.lead]}`, area[0], area[1], "fire-weather area");
-    kpi("", "Peak FWI today", k.peak_fwi_today ?? "–", "", S.d.config.risk.validation.status === "validated" ? "validated model" : "index · not locally validated");
+    kpi(r.priority_review ? "alert" : "", "Likely new fires", r.priority_review || 0, "", "seen twice, no known fire there");
+    kpi(r.verify ? "warn" : "", "Need a check", r.verify || 0, "", "send a camera, drone or crew");
+    kpi("", "Known fires", k.known_incidents, "", `${r.monitor_known || 0} also seen by satellite`);
+    kpi("", "Satellite heat spots", k.detections_48h, "", `last 48 h · ${sensors}`);
+    kpi("", `Dangerous fire weather · ${["today", "tomorrow", "day 3"][S.lead]}`, area[0], area[1], "area rated High or worse");
+    kpi("", "Worst fire-weather score", k.peak_fwi_today ?? "–", "", S.d.config.risk.validation.status === "validated" ? "FWI · validated here" : "FWI · above 38 is extreme · not yet tuned here");
   }
 
   // ---------- queue + detail ----------
@@ -360,8 +360,8 @@
   }
   function renderLegend() {
     const cls = S.d.config.risk.classes, cols = classColors(cls.length), box = clear($("#legend"));
-    box.append(el("span", { class: "lbl", text: "Fire weather (FWI)" }), el("span", { class: "ramp" }, cls.map((c, i) => el("span", null, el("i", { style: { background: cols[i] } }), `${c.name}`))));
-    box.append(el("span", { class: "sym" }, el("i", { style: { background: css("--det-new") } }), "New detection"),
+    box.append(el("span", { class: "lbl", text: "Squares: how easily fire spreads" }), el("span", { class: "ramp" }, cls.map((c, i) => el("span", null, el("i", { style: { background: cols[i] } }), `${c.name}`))));
+    box.append(el("span", { class: "sym" }, el("i", { style: { background: css("--det-new") } }), "Satellite heat spot (new)"),
       el("span", { class: "sym" }, el("i", { style: { background: css("--det-old") } }), "24 h+ old"),
       el("span", { class: "sym" }, el("i", { style: { background: css("--info") } }), "Incident / perimeter"));
   }
@@ -378,7 +378,14 @@
     if (!S.cell) selectCell(S.d.summary.kpis.peak_cell);
     try { history.replaceState(null, "", `#${jid}`); } catch {}
   }
+  function wireGuide() {
+    const g = $("#guide");
+    if (!g) return;
+    try { if (localStorage.getItem("wfi-guide") === "closed") g.open = false; } catch {}
+    g.addEventListener("toggle", () => { try { localStorage.setItem("wfi-guide", g.open ? "open" : "closed"); } catch {} });
+  }
   function wire(js) {
+    wireGuide();
     $("#jur").addEventListener("change", (e) => show(e.target.value, js).catch(fail));
     document.querySelectorAll("#lead button").forEach((b) => b.addEventListener("click", () => {
       S.lead = +b.dataset.lead;

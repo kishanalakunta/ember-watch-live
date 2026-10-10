@@ -169,14 +169,21 @@ def build_candidates(obs, incidents, cells, pack, now: datetime) -> list[dict]:
             wnote = f"{d0['class']} fire weather (FWI {d0['fwi']})"
         score = evidence * wfac * (0.25 if static else 1.0)
         incident = _match_incident(lat, lon, incidents, det.incident_match_km)
+        frp_max = max((o.frp_mw or 0) for o in members)
+        # Priority review needs corroboration: a repeat look (second pass), or one look that
+        # is unmistakable (3+ adjacent pixels with a strong FRP). A single bright pixel is
+        # usually a farm burn, a flare or glint, so it goes to verification instead.
+        corroborated = len(passes) >= det.routing.min_passes_for_priority or (max_px >= 3 and frp_max >= 10)
+        held_back = False
         if incident:
             route = "monitor_known"
         elif static:
             route = "likely_static"
-        elif score >= det.routing.priority_review:
+        elif score >= det.routing.priority_review and corroborated:
             route = "priority_review"
         elif score >= det.routing.verify:
             route = "verify"
+            held_back = score >= det.routing.priority_review
         else:
             route = "watch"
         first = members[0]
@@ -195,6 +202,7 @@ def build_candidates(obs, incidents, cells, pack, now: datetime) -> list[dict]:
                 "passes": len(passes), "platforms": sensors, "independent_platforms": len(sensors),
                 "observations": len(members), "distinct_days": len(days),
                 "extent_km": round(extent, 2), "max_pixels_per_pass": max_px,
+                "corroborated": corroborated, "held_back_uncorroborated": held_back,
                 "growth": "growing" if latest_pass_px > first_pass_px else ("shrinking" if latest_pass_px < first_pass_px else "steady"),
             },
             "first_seen": members[0].observation_time.isoformat(), "last_seen": last_seen.isoformat(),

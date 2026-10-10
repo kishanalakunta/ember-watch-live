@@ -133,15 +133,15 @@ def run(pack_id: str, out_root: Path, *, fixtures: bool, cache_dir: Path | None,
         return f"{k} {one if k == 1 else many}"
     if routes.get("priority_review"):
         k = routes["priority_review"]
-        lines.append(f"{n(k, 'unmatched detection cluster needs', 'unmatched detection clusters need')} priority review.")
+        lines.append(f"{n(k, 'likely new fire needs', 'likely new fires need')} review: seen on more than one satellite look, with no known fire there.")
     if routes.get("verify"):
         k = routes["verify"]
-        lines.append(f"{n(k, 'cluster is', 'clusters are')} recommended for camera, aircraft or UAS verification.")
+        lines.append(f"{n(k, 'heat spot needs', 'heat spots need')} a check by camera, drone or crew before anyone acts.")
     if routes.get("monitor_known"):
         k = routes["monitor_known"]
-        lines.append(f"{n(k, 'cluster matches a known incident', 'clusters match known incidents')}.")
+        lines.append(f"{n(k, 'heat spot matches a fire', 'heat spots match fires')} the fire service already tracks.")
     if peak:
-        lines.append(f"Highest fire weather today: {peak['days'][0]['class']} (FWI {peak['days'][0]['fwi']}) near "
+        lines.append(f"Worst fire weather today: {peak['days'][0]['class']} (score {peak['days'][0]['fwi']}) near "
                      f"{peak['lat']:.2f}, {peak['lon']:.2f}.")
     evidence = {"jurisdiction": pack.name, "generated": now.isoformat(),
                 "candidates": [{k: c[k] for k in ("id", "route", "score", "lat", "lon", "explanation")} for c in candidates[:8]],

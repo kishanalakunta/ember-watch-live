@@ -40,6 +40,18 @@
   </header>
   <p id="fatal" class="card" role="alert" hidden></p>
 
+  <details id="guide" class="guide card" open>
+    <summary><span class="lbl">New here?</span> <b>How to read this page</b> <span class="muted">· 30 seconds</span></summary>
+    <ol class="guide-steps">
+      <li><b>Colored squares</b> show fire weather: how easily a fire could start and spread. Green is calm, red and dark red are dangerous. Switch Today / Tomorrow / Day 3 above the map.</li>
+      <li><b>Small orange dots</b> are places where a satellite saw unusual heat in the last 48 hours. Most are small burns or gas flares; a few are wildfires.</li>
+      <li><b>Numbered pins</b> group nearby dots into one possible fire. <span class="tag-crit">Red</span> = likely new fire (seen twice, no known fire there). <span class="tag-warn">Amber</span> = needs a check by camera, drone or crew. <span class="tag-info">Teal</span> = a fire the fire service already tracks. Grey = likely gas flare.</li>
+      <li><b>Click a pin</b> (or a row in the list on the right) to see why it was flagged: what the satellites saw, the weather there, and which towns are downwind.</li>
+      <li><b>Click any square</b> to see what drives its fire-weather score: dryness, humidity, wind and days without rain.</li>
+    </ol>
+    <p class="muted guide-note">This page supports decisions; it never sends crews or warnings by itself. Data refreshes every 30 minutes.</p>
+  </details>
+
   <section class="brief" aria-label="Situation brief"><span class="lbl">Situation</span><ul id="brief-list"><li>Loading…</li></ul></section>
   <section id="kpis" class="kpis" aria-label="Key figures"></section>
 
@@ -62,7 +74,7 @@
     </div>
     <aside class="side">
       <div class="card">
-        <div class="cardhead"><div><h2>Detection queue</h2><p class="sub">Clustered, fused and routed. Every decision stays with a person.</p></div><span id="queue-count" class="pill"></span></div>
+        <div class="cardhead"><div><h2>Possible fires, most urgent first</h2><p class="sub">Click one to zoom in and see the evidence. A person makes every call.</p></div><span id="queue-count" class="pill"></span></div>
         <ol id="queue" class="queue"></ol>
       </div>
     </aside>
