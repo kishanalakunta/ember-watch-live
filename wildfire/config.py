@@ -46,7 +46,9 @@ class StaticSource(Strict):
 class Routing(Strict):
     priority_review: float = Field(ge=0, le=1)
     verify: float = Field(ge=0, le=1)
-    min_passes_for_priority: int = Field(default=2, ge=1, le=6)
+    min_passes_for_priority: int = Field(default=2, ge=1, le=6)   # counted as separate overpass windows
+    window_gap_hours: float = Field(default=3.0, ge=0, le=24)      # looks closer than this are one window
+    stale_after_hours: float = Field(default=14.0, gt=0, le=72)    # not seen since -> weak signal
 
 
 class Detection(Strict):

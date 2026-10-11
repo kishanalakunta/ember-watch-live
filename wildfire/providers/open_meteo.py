@@ -30,6 +30,8 @@ VARS = ["temperature_2m", "relative_humidity_2m", "wind_speed_10m", "wind_direct
 LICENSE = "CC BY 4.0 (Open-Meteo); underlying model data per NOAA/ECMWF terms. Free tier: non-commercial."
 ATTRIB = "Weather data by Open-Meteo.com"
 BATCH = 50
+HIST_BATCH = 15          # the archive API is slower and its call weight grows with the date range
+TIME_BUDGET_S = 420      # stop asking after 7 minutes so one slow source cannot stall the whole run
 CACHE_TTL_H = 6
 RES = {"gfs_hrrr": "3 km (HRRR)", "ecmwf_ifs025": "0.25° (~25 km, ECMWF IFS)", "best_match": "model blend"}
 
@@ -94,13 +96,21 @@ def fetch(pack, ref, points, *, now: datetime, cache_dir: Path | None, fixtures:
         items = json.loads(cache.read_text())
         status, msg = "ok", f"cached pull from {datetime.fromtimestamp(cache.stat().st_mtime, timezone.utc):%H:%M} UTC"
     else:
-        items, filled, failed = [], 0, 0
-        for i in range(0, len(points), BATCH):
-            batch = points[i:i + BATCH]
+        items, filled, failed, first_error = [], 0, 0, ""
+        size = HIST_BATCH if as_of else BATCH
+        started = time.monotonic()
+        for i in range(0, len(points), size):
+            batch = points[i:i + size]
+            if time.monotonic() - started > TIME_BUDGET_S:
+                first_error = first_error or f"stopped after {TIME_BUDGET_S} s time budget"
+                failed += len(batch)
+                items.extend({"latitude": p[0], "longitude": p[1], "hourly": None} for p in batch)
+                continue
             try:
                 got = _request(batch, model, ref.past_days, ref.forecast_days, as_of)
             except http.FetchError as e:
                 log.warning("model %s failed (%s); using %s", model, e, ref.fallback_model)
+                first_error = first_error or f"{model}: {e}"
                 got = []
             if ref.fallback_model and (not got or any(_null_frac(g["hourly"]) > 0.02 for g in got)):
                 try:
@@ -114,6 +124,7 @@ def fetch(pack, ref, points, *, now: datetime, cache_dir: Path | None, fixtures:
                                 filled += 1
                 except http.FetchError as e:
                     log.error("fallback model failed too: %s", e)
+                    first_error = first_error or f"{ref.fallback_model}: {e}"
             if not got:
                 failed += len(batch)
                 got = [{"latitude": p[0], "longitude": p[1], "hourly": None} for p in batch]
@@ -124,6 +135,8 @@ def fetch(pack, ref, points, *, now: datetime, cache_dir: Path | None, fixtures:
             cache.write_text(json.dumps(items))
         status = "ok" if not failed else ("partial" if failed < len(points) else "failed")
         msg = f"{filled} cells gap-filled from {ref.fallback_model}; {failed} cells missing" if (filled or failed) else ""
+        if first_error:
+            msg += f" | first error: {first_error[:220]}"
     series = [to_series(it) if it.get("hourly") else None for it in items]
     return series, [SourceMeta(status=status, records=sum(s is not None for s in series),
                                latest_observation=now, message=msg, **meta)]

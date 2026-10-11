@@ -49,7 +49,9 @@ detection:
   routing:                     # decision support only — a human makes every call (PRD A5)
     priority_review: 0.85
     verify: 0.50
-    min_passes_for_priority: 2 # a single satellite look goes to verification, not priority
+    min_passes_for_priority: 2 # needs 2 separate overpass windows (or one unmistakable look)
+    window_gap_hours: 3        # NOAA-20/21 and S-NPP pass ~50 min apart: count as one window
+    stale_after_hours: 14      # missed by the latest pass -> weak signal
 
 risk:
   model_id: fwi-system-v1

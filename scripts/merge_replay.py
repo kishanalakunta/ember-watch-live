@@ -28,10 +28,12 @@ def main(src: Path, dst: Path) -> int:
         return 0
     # Only cache a replay whose satellite archive actually came back; otherwise it is shown
     # this run but rebuilt next run (e.g. after the FIRMS_MAP_KEY secret is added).
-    complete = all(any(x["provider"] == "nasa_firms" and x["status"] == "ok"
-                       for x in json.loads((src / e["id"] / "summary.json").read_text())["sources"]) for e in good)
+    def _ok(e, provider):
+        srcs = json.loads((src / e["id"] / "summary.json").read_text())["sources"]
+        return any(x["provider"] == provider and x["status"] == "ok" for x in srcs)
+    complete = all(_ok(e, "nasa_firms") and _ok(e, "open_meteo") for e in good)
     if not complete:
-        print("replay has no satellite data yet; shown but not cached")
+        print("replay is missing satellite or weather data; shown but not cached, will retry next run")
     site_idx = dst / "jurisdictions.json"
     cur = json.loads(site_idx.read_text()) if site_idx.is_file() else []
     ids = {e["id"] for e in good}

@@ -95,6 +95,18 @@ def _passes(members: list[Observation]) -> list[dict]:
     return sorted(out, key=lambda x: x["time"])
 
 
+def _windows(passes: list[dict], gap_h: float) -> int:
+    """Count overpass windows. NOAA-20, NOAA-21 and S-NPP fly the same orbit about
+    50 minutes apart, so three looks within two hours are one window, not three
+    independent confirmations of a fire that is still burning later."""
+    n, last = 0, None
+    for p in passes:   # sorted by time
+        if last is None or (p["time"] - last).total_seconds() / 3600 > gap_h:
+            n += 1
+        last = p["time"]
+    return n
+
+
 def _nearest_cell(lat, lon, cells):
     best, bd = None, 1e9
     for c in cells:
@@ -170,15 +182,19 @@ def build_candidates(obs, incidents, cells, pack, now: datetime) -> list[dict]:
         score = evidence * wfac * (0.25 if static else 1.0)
         incident = _match_incident(lat, lon, incidents, det.incident_match_km)
         frp_max = max((o.frp_mw or 0) for o in members)
-        # Priority review needs corroboration: a repeat look (second pass), or one look that
-        # is unmistakable (3+ adjacent pixels with a strong FRP). A single bright pixel is
-        # usually a farm burn, a flare or glint, so it goes to verification instead.
-        corroborated = len(passes) >= det.routing.min_passes_for_priority or (max_px >= 3 and frp_max >= 10)
+        # Priority review needs corroboration: still burning on a later overpass window, or one
+        # look that is unmistakable (3+ adjacent pixels with a strong FRP). A short-lived bright
+        # spot is usually a farm burn, a flare or glint, so it goes to verification instead.
+        windows = _windows(passes, det.routing.window_gap_hours)
+        corroborated = windows >= det.routing.min_passes_for_priority or (max_px >= 3 and frp_max >= 10)
+        stale = (now - last_seen).total_seconds() / 3600 > det.routing.stale_after_hours
         held_back = False
         if incident:
             route = "monitor_known"
         elif static:
             route = "likely_static"
+        elif stale:
+            route = "watch"
         elif score >= det.routing.priority_review and corroborated:
             route = "priority_review"
         elif score >= det.routing.verify:
@@ -202,6 +218,7 @@ def build_candidates(obs, incidents, cells, pack, now: datetime) -> list[dict]:
                 "passes": len(passes), "platforms": sensors, "independent_platforms": len(sensors),
                 "observations": len(members), "distinct_days": len(days),
                 "extent_km": round(extent, 2), "max_pixels_per_pass": max_px,
+                "overpass_windows": windows, "stale": stale,
                 "corroborated": corroborated, "held_back_uncorroborated": held_back,
                 "growth": "growing" if latest_pass_px > first_pass_px else ("shrinking" if latest_pass_px < first_pass_px else "steady"),
             },

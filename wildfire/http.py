@@ -70,7 +70,11 @@ def get(url: str, *, params: dict | None = None, timeout: float = 60.0, retries:
                 resp = httpx.Response(r.status_code, headers=headers, content=body, request=r.request)
             if resp.status_code in (429, 500, 502, 503, 504) and attempt < retries:
                 log.warning("%s returned %s; retry %d", host, resp.status_code, attempt)
-                time.sleep(delay)
+                wait = delay
+                if resp.status_code == 429:   # per-minute quotas: wait out the window
+                    ra = resp.headers.get("retry-after", "")
+                    wait = min(90.0, float(ra)) if ra.replace(".", "", 1).isdigit() else 61.0
+                time.sleep(wait)
                 delay *= 2
                 continue
             if resp.status_code >= 400:

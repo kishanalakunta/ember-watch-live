@@ -91,8 +91,8 @@ def _cells(class_index=3):
 
 def test_routing_multisensor_vs_single_pixel():
     pack = load_pack("texas")
-    t = NOW - timedelta(hours=2)
-    strong = [_obs(35.80, -100.40, t, 0.9, "NOAA-20"), _obs(35.801, -100.401, t + timedelta(hours=1), 0.7, "Suomi NPP")]
+    t = NOW - timedelta(hours=8)   # night pass, then afternoon pass: two overpass windows
+    strong = [_obs(35.80, -100.40, t, 0.9, "NOAA-20"), _obs(35.801, -100.401, t + timedelta(hours=6), 0.7, "Suomi NPP")]
     weak = [_obs(33.40, -99.80, t, 0.7)]
     out = {c["components"]["observations"]: c for c in build_candidates(strong + weak, [], _cells(), pack, NOW)}
     assert out[2]["route"] == "priority_review"
@@ -228,3 +228,23 @@ def test_two_night_flare_is_static_in_texas():
     pack = load_pack("texas")
     flare = [_obs(31.9, -102.33, NOW - timedelta(days=d, hours=3), 0.7, "Suomi NPP", 3) for d in range(2)]
     assert build_candidates(flare, [], _cells(), pack, NOW)[0]["route"] == "likely_static"
+
+
+def test_same_orbit_looks_count_as_one_window():
+    pack = load_pack("texas")
+    t = NOW - timedelta(hours=2)
+    # one afternoon burn seen by the three VIIRS satellites within ~100 minutes
+    burst = [_obs(33.0, -99.0, t + timedelta(minutes=50 * k), 0.9, sat, 4)
+             for k, sat in enumerate(["NOAA-21", "NOAA-20", "Suomi NPP"])]
+    # a fire seen on the night pass and again on the afternoon pass
+    persist = [_obs(34.0, -100.0, NOW - timedelta(hours=h), 0.9, "NOAA-20", 4) for h in (13, 1)]
+    out = {round(c["lat"]): c for c in build_candidates(burst + persist, [], _cells(), pack, NOW)}
+    assert out[33]["components"]["overpass_windows"] == 1 and out[33]["route"] == "verify"
+    assert out[34]["components"]["overpass_windows"] == 2 and out[34]["route"] == "priority_review"
+
+
+def test_spot_missed_by_latest_pass_is_weak_signal():
+    pack = load_pack("texas")
+    old = [_obs(33.0, -99.0, NOW - timedelta(hours=h), 0.9, "NOAA-20", 25) for h in (20, 17)]   # same day, so not a flare
+    c = build_candidates(old, [], _cells(), pack, NOW)[0]
+    assert c["route"] == "watch" and c["components"]["stale"]

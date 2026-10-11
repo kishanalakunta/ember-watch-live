@@ -52,8 +52,12 @@ def explain_candidate(c: dict, units: Units, sources: dict[str, str]) -> list[di
         f"weather factor {comp['weather_factor']}, static-source factor {comp['static_factor']}; "
         f"priority score {c['score']:.2f}.", [c["id"]])
     if comp.get("held_back_uncorroborated"):
-        add("calculated", "Score is high, but only one satellite pass has seen it, so it is held at verification "
-            "until a second pass or a camera/UAS check confirms it.", [c["id"]])
+        add("calculated", "Score is high, but it has only been seen in one overpass window (satellites passing "
+            "within a few hours count once), so it is held at verification until a later pass or a "
+            "camera/UAS check confirms it.", [c["id"]])
+    if comp.get("stale"):
+        add("calculated", f"Not seen for {c['hours_since_last']} h, so the latest satellite pass missed it; "
+            "it is kept as a weak signal rather than a new fire.", [c["id"]])
     if comp["static_factor"] < 1:
         add("model", f"Detected on {comp['distinct_days']} separate days within {units.dist(comp['extent_km'])} "
             "with at most 2 pixels per pass, which matches a static heat source such as a gas flare.", [c["id"]])
