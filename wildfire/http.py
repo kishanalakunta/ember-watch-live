@@ -71,9 +71,11 @@ def get(url: str, *, params: dict | None = None, timeout: float = 60.0, retries:
             if resp.status_code in (429, 500, 502, 503, 504) and attempt < retries:
                 log.warning("%s returned %s; retry %d", host, resp.status_code, attempt)
                 wait = delay
-                if resp.status_code == 429:   # per-minute quotas: wait out the window
-                    ra = resp.headers.get("retry-after", "")
-                    wait = min(90.0, float(ra)) if ra.replace(".", "", 1).isdigit() else 61.0
+                if resp.status_code == 429:
+                    if is_quota_error(resp.text):   # hourly/daily quota: retrying cannot help
+                        raise FetchError(f"{host} returned HTTP 429: {redact(resp.text[:200])}")
+                    ra = resp.headers.get("retry-after", "")   # per-minute limit: wait out the window
+                    wait = min(65.0, float(ra)) if ra.replace(".", "", 1).isdigit() else 61.0
                 time.sleep(wait)
                 delay *= 2
                 continue
@@ -89,6 +91,11 @@ def get(url: str, *, params: dict | None = None, timeout: float = 60.0, retries:
                 time.sleep(delay)
                 delay *= 2
     raise FetchError(f"{host} unreachable after {retries} attempts: {redact(str(last))}")
+
+
+def is_quota_error(text: str | None) -> bool:
+    t = (text or "").lower()
+    return ("hourly" in t or "daily" in t) and ("limit" in t or "429" in t)
 
 
 def env_secret(name: str) -> str | None:

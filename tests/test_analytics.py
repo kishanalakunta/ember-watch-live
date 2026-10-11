@@ -248,3 +248,42 @@ def test_spot_missed_by_latest_pass_is_weak_signal():
     old = [_obs(33.0, -99.0, NOW - timedelta(hours=h), 0.9, "NOAA-20", 25) for h in (20, 17)]   # same day, so not a flare
     c = build_candidates(old, [], _cells(), pack, NOW)[0]
     assert c["route"] == "watch" and c["components"]["stale"]
+
+
+def test_live_weather_joins_history_and_recent_and_survives_quota(monkeypatch, tmp_path):
+    """History is pulled daily, recent days every few hours; a quota error falls back to last good."""
+    import httpx
+    from wildfire import http as H
+    from wildfire.providers import open_meteo as OM
+    calls, mode = [], {"quota": False}
+    monkeypatch.setattr(OM.time, "sleep", lambda s: None)
+
+    def handler(request):
+        q = dict(request.url.params)
+        calls.append(q)
+        if mode["quota"]:
+            return httpx.Response(429, json={"error": True, "reason": "Daily API request limit exceeded."})
+        past = int(q["past_days"])
+        t0 = datetime(2026, 7, 1) - timedelta(days=past)
+        times = [(t0 + timedelta(hours=k)).strftime("%Y-%m-%dT%H:00") for k in range(past * 24)]
+        val = 2.0 if past < 10 else 1.0      # recent pull reports 2.0, history 1.0
+        return httpx.Response(200, json={"latitude": 35.0, "longitude": -100.0,
+                                         "hourly": {"time": times, **{v: [val] * len(times) for v in OM.VARS}}})
+
+    monkeypatch.setattr(H, "_TRANSPORT", httpx.MockTransport(handler))
+    pack = load_pack("texas")
+    ref = pack.providers.weather[0]
+    series, meta = OM.fetch(pack, ref, [(35.0, -100.0)], now=NOW, cache_dir=tmp_path)
+    assert meta[0].status == "ok" and sorted(int(c["past_days"]) for c in calls) == [3, ref.past_days]
+    s = series[0]
+    assert len(s["time"]) == ref.past_days * 24 and s["time"][-1].day == 30 and s["temperature_2m"][0] == 1.0 and s["temperature_2m"][-1] == 2.0
+
+    # an hour later the cache is stale and the service says the daily quota is used up
+    import os
+    for f in tmp_path.iterdir():
+        os.utime(f, (f.stat().st_mtime - 30 * 3600,) * 2)
+    mode["quota"], n = True, len(calls)
+    series, meta = OM.fetch(pack, ref, [(35.0, -100.0)], now=NOW, cache_dir=tmp_path)
+    assert series[0] is not None and meta[0].status == "partial"
+    assert "latest pull failed" in meta[0].message and "Daily API request limit" in meta[0].message
+    assert len(calls) - n == 2      # one call per pull, no retries or fallback-model calls on a quota error

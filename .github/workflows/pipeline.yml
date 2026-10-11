@@ -43,11 +43,12 @@ jobs:
         run: pip install --require-hashes --no-deps -r requirements/pipeline.txt
       - name: Weather cache bucket
         id: bucket
-        run: echo "key=$(date -u +%Y%m%d)-$(( 10#$(date -u +%H) / 6 ))" >> "$GITHUB_OUTPUT"
+        run: echo "key=$(date -u +%Y%m%d)-$(( 10#$(date -u +%H) / 3 ))" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .cache
           key: wx-${{ steps.bucket.outputs.key }}
+          restore-keys: wx-   # start from the previous bucket so last-good weather survives an outage
       - name: Run pipeline
         env:
           FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
