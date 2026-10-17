@@ -1,4 +1,4 @@
 -r api.in
 pytest>=8
-ruff>=0.8
+ruff>=0.17.0
 pip-audit>=2.7
